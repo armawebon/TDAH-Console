@@ -48,6 +48,7 @@ export interface Project {
   due_date: string | null
   notion_page_id: string | null
   gravity_weight: number
+  energy_required: number | null
   tags: string[]
   metadata: Record<string, unknown>
   created_at: string

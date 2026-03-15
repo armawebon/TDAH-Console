@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS public.projects (
   due_date         DATE,
   notion_page_id   TEXT,
   gravity_weight   FLOAT DEFAULT 0.5 CHECK (gravity_weight BETWEEN 0 AND 1),
+  energy_required  INT CHECK (energy_required BETWEEN 1 AND 10),
   tags             TEXT[] DEFAULT '{}',
   metadata         JSONB DEFAULT '{}',
   created_at       TIMESTAMPTZ DEFAULT NOW(),
