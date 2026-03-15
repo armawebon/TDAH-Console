@@ -1,10 +1,13 @@
-import { createClient } from '@/lib/supabase/server'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import { ProjectCard } from '@/components/projects/project-card'
-import { buttonVariants } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
-import { Plus } from 'lucide-react'
+import { Plus, Loader2 } from 'lucide-react'
 import type { Project, ProjectStatus } from '@/types'
 
 const STATUS_TABS: { value: ProjectStatus | 'all'; label: string }[] = [
@@ -15,27 +18,35 @@ const STATUS_TABS: { value: ProjectStatus | 'all'; label: string }[] = [
   { value: 'completed', label: 'Completados' },
 ]
 
-interface Props {
-  searchParams: Promise<{ status?: string }>
-}
+const btn = 'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 h-8 px-3'
+const btnDefault = 'bg-primary text-primary-foreground hover:bg-primary/90'
+const btnOutline = 'border border-input bg-background hover:bg-accent hover:text-accent-foreground'
 
-export default async function ProjectsPage({ searchParams }: Props) {
-  const { status = 'inbox' } = await searchParams
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+export default function ProjectsPage() {
+  const searchParams = useSearchParams()
+  const status = searchParams.get('status') ?? 'inbox'
+  const supabase = createClient()
 
-  let query = supabase
-    .from('projects')
-    .select('*')
-    .eq('user_id', user!.id)
-    .neq('status', 'archived')
-    .order('created_at', { ascending: false })
+  const [projects, setProjects] = useState<Project[]>([])
+  const [loading, setLoading] = useState(true)
 
-  if (status !== 'all') {
-    query = query.eq('status', status)
-  }
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true)
+      let query = supabase
+        .from('projects')
+        .select('*')
+        .neq('status', 'archived')
+        .order('created_at', { ascending: false })
 
-  const { data: projects } = await query
+      if (status !== 'all') query = query.eq('status', status)
+
+      const { data } = await query
+      setProjects((data ?? []) as Project[])
+      setLoading(false)
+    }
+    load()
+  }, [status])
 
   return (
     <div className="p-6 space-y-6">
@@ -43,11 +54,11 @@ export default async function ProjectsPage({ searchParams }: Props) {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Proyectos</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {projects?.length ?? 0} proyectos
+            {projects.length} proyectos
           </p>
         </div>
-        <Link href="/capture" className={cn(buttonVariants({ size: 'sm' }))}>
-          <Plus className="w-4 h-4 mr-1" />
+        <Link href="/capture" className={cn(btn, btnDefault)}>
+          <Plus className="w-4 h-4 mr-1.5" />
           Capturar idea
         </Link>
       </div>
@@ -58,10 +69,7 @@ export default async function ProjectsPage({ searchParams }: Props) {
           <Link
             key={value}
             href={`/projects?status=${value}`}
-            className={cn(buttonVariants({
-              variant: status === value ? 'default' : 'outline',
-              size: 'sm',
-            }))}
+            className={cn(btn, status === value ? btnDefault : btnOutline)}
           >
             {label}
           </Link>
@@ -69,10 +77,14 @@ export default async function ProjectsPage({ searchParams }: Props) {
       </div>
 
       {/* Grid de proyectos */}
-      {projects && projects.length > 0 ? (
+      {loading ? (
+        <div className="flex justify-center py-20">
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : projects.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {projects.map((project) => (
-            <ProjectCard key={project.id} project={project as Project} />
+            <ProjectCard key={project.id} project={project} />
           ))}
         </div>
       ) : (
@@ -83,8 +95,8 @@ export default async function ProjectsPage({ searchParams }: Props) {
               ? 'Tu inbox está vacío. Captura tu primera idea.'
               : `No hay proyectos en estado "${status}".`}
           </p>
-          <Link href="/capture" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
-            <Plus className="w-4 h-4 mr-1" />
+          <Link href="/capture" className={cn(btn, btnOutline)}>
+            <Plus className="w-4 h-4 mr-1.5" />
             Capturar idea
           </Link>
         </div>
